@@ -5,6 +5,7 @@
 #include <slurm/slurm_errno.h>
 
 #include "src/slurmctld/slurmctld.h"
+#include "src/slurmctld/licenses.h"
 
 #include "src/common/xstring.h"
 
@@ -29,11 +30,7 @@ extern int job_submit(struct job_descriptor *job_desc, uint32_t submit_uid, char
     // sbatch: argc = 0, script != NULL
 
     if (job_desc->script == NULL) {
-        //*err_msg = xstrdup("Interactive jobs are not allowed");
-        //return SLURM_ERROR;
-        //return ESLURM_JOB_SCRIPT_MISSING;
-        //return ESLURM_NOT_SUPPORTED;
-        //ESLURM_DISABLED,
+        info("limit_interactive: no script, adding interactive license");
 
         char* tmp_str;
         if (job_desc->licenses == NULL) {
@@ -74,11 +71,57 @@ extern int job_submit(struct job_descriptor *job_desc, uint32_t submit_uid, char
     return SLURM_SUCCESS;
 }
 
-int job_modify(struct job_descriptor *job_desc, struct job_record *job_ptr, uint32_t submit_uid) {
-    //if (job_desc->time_limit == INFINITE) {
-    //    info("Bad replacement time limit for %u", job_desc->job_id);
-    //    return ESLURM_INVALID_TIME_LIMIT;
-    //}
+extern int job_modify(struct job_descriptor *job_desc, struct job_record *job_ptr, uint32_t submit_uid) {
+
+    debug("limit_interactive: job_modify: licenses: %s -> %s", job_ptr->licenses, job_desc->licenses);
+
+    // get current licenses
+    bool have_interactive = false;
+    if (job_ptr->license_list) {
+        have_interactive = license_get_total_cnt_from_list(job_ptr->license_list, "interactive") > 0;
+    }
+    if (!have_interactive) {
+        debug("limit_interactive: job_modify: not interactive, ignoring");
+        return SLURM_SUCCESS;
+    }
+
+    // add interactive to wanted licenses, if NULL, no change is needed
+    bool need_interactive = true;
+    if (job_desc->licenses) {
+        char *tmp_str = xstrdup(job_desc->licenses);
+        char *last;
+        char *token = strtok_r(tmp_str, ",;", &last);
+        while (token) {
+            if (strncmp(token, "interactive", 11) == 0) {
+                uint32_t num = 1;
+                for (int i = 0; token[i]; i++) {
+                    if (token[i] == ':') {
+                        token[i++] = '\0';
+                        char* end_num;
+                        num = (uint32_t)strtol(&token[i], &end_num,10);
+                    }
+                }
+                if (strcmp(token, "interactive") == 0 && num > 0) {
+                    need_interactive = false;
+                    break;
+                }
+            }
+            token = strtok_r(NULL, ",;", &last);
+        }
+        xfree(tmp_str);
+
+        if (need_interactive) {
+            // for now, just fail
+            return ESLURM_NOT_SUPPORTED;
+
+            tmp_str = xmalloc(strlen(job_desc->licenses) + 1 + 13 + 1);
+            strcpy(tmp_str, job_desc->licenses);
+            strcat(tmp_str, ",interactive:1");
+            info("limit_interactive: job_modify: licenses: %s -> (%s -> %s)", job_ptr->licenses, job_desc->licenses, tmp_str);
+            xfree(job_desc->licenses);
+            job_desc->licenses = tmp_str;
+        }
+    }
 
     return SLURM_SUCCESS;
 }
