@@ -81,6 +81,29 @@ extern int job_submit(struct job_descriptor *job_desc, uint32_t submit_uid, char
     snprintf(buf, sizeof(buf), "script: %s\n", job_desc->script);
     fwrite(buf, 1, strlen(buf), out);
 
+    snprintf(buf, sizeof(buf), "num_tasks: %i\n", job_desc->num_tasks);
+    fwrite(buf, 1, strlen(buf), out);
+
+    snprintf(buf, sizeof(buf), "ntasks_per_node: %i\n", job_desc->ntasks_per_node);
+    fwrite(buf, 1, strlen(buf), out);
+
+    snprintf(buf, sizeof(buf), "ntasks_per_socket: %i\n", job_desc->ntasks_per_socket);
+    fwrite(buf, 1, strlen(buf), out);
+
+    snprintf(buf, sizeof(buf), "ntasks_per_core: %i\n", job_desc->ntasks_per_core);
+    fwrite(buf, 1, strlen(buf), out);
+
+    snprintf(buf, sizeof(buf), "ntasks_per_board: %i\n", job_desc->ntasks_per_board);
+    fwrite(buf, 1, strlen(buf), out);
+
+    snprintf(buf, sizeof(buf), "req_nodes: %s\n", job_desc->req_nodes);
+    fwrite(buf, 1, strlen(buf), out);
+
+    snprintf(buf, sizeof(buf), "min_nodes: %i\n", job_desc->min_nodes);
+    fwrite(buf, 1, strlen(buf), out);
+
+    snprintf(buf, sizeof(buf), "max_nodes: %i\n", job_desc->max_nodes);
+    fwrite(buf, 1, strlen(buf), out);
 
 //	char *array_inx;	/* job array index values */
 //	void *array_bitmap;	/* NOTE: Set by slurmctld */
@@ -136,8 +159,6 @@ extern int job_submit(struct job_descriptor *job_desc, uint32_t submit_uid, char
 //	char *network;		/* network use spec */
 //	uint32_t nice;		/* requested priority change,
 //				 * NICE_OFFSET == no change */
-//	uint32_t num_tasks;	/* number of tasks to be started,
-//				 * for batch only */
 //	uint8_t open_mode;	/* out/err open mode truncate or append,
 //				 * see OPEN_MODE_* */
 //	uint16_t other_port;	/* port to send various notification msg to */
@@ -155,8 +176,6 @@ extern int job_submit(struct job_descriptor *job_desc, uint32_t submit_uid, char
 
 //	uint16_t reboot;	/* force node reboot before startup */
 //	char *resp_host;	/* NOTE: Set by slurmctld */
-//	char *req_nodes;	/* comma separated list of required nodes
-//				 * default NONE */
 //	uint16_t requeue;	/* enable or disable job requeue option */
 //	char *reservation;	/* name of reservation to use */
 
@@ -188,20 +207,11 @@ extern int job_submit(struct job_descriptor *job_desc, uint32_t submit_uid, char
 //				 * default=0 */
 //	uint32_t max_cpus;	/* maximum number of processors required,
 //				 * default=0 */
-//	uint32_t min_nodes;	/* minimum number of nodes required by job,
-//				 * default=0 */
-//	uint32_t max_nodes;	/* maximum number of nodes usable by job,
-//				 * default=0 */
 //	uint16_t boards_per_node; /* boards per node required by job  */
 //	uint16_t sockets_per_board;/* sockets per board required by job */
 //	uint16_t sockets_per_node;/* sockets per node required by job */
 //	uint16_t cores_per_socket;/* cores per socket required by job */
 //	uint16_t threads_per_core;/* threads per core required by job */
-//	uint16_t ntasks_per_node;/* number of tasks to invoke on each node */
-//	uint16_t ntasks_per_socket;/* number of tasks to invoke on
-//				    * each socket */
-//	uint16_t ntasks_per_core;/* number of tasks to invoke on each core */
-//	uint16_t ntasks_per_board;/* number of tasks to invoke on each board */
 //	uint16_t pn_min_cpus;    /* minimum # CPUs per node, default=0 */
 //	uint64_t pn_min_memory;  /* minimum real memory per node OR
 //				  * real memory per CPU | MEM_PER_CPU,
