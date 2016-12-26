@@ -32,9 +32,22 @@ extern int job_submit(struct job_descriptor *job_desc, uint32_t submit_uid, char
     if (job_desc->script == NULL) {
         info("limit_interactive: no script, adding interactive license");
 
+        // also limit number of nodes
+        int nlic = 1;
+        if (job_desc->max_nodes > 1) {
+            nlic = job_desc->max_nodes;
+        }
+        if (nlic > 9)
+            nlic = 9;
+        else if (nlic < 1)
+            nlic = 1;
+        job_desc->max_nodes = nlic;
+        char* licstr = xstrdup("interactive:1");
+        licstr[12] = ('0' + nlic);
+
         char* tmp_str;
         if (job_desc->licenses == NULL) {
-            job_desc->licenses = xstrdup("interactive:1");
+            job_desc->licenses = xstrdup(licstr);
         } else {
             bool have_license = false;
             tmp_str = xstrdup(job_desc->licenses);
@@ -50,7 +63,7 @@ extern int job_submit(struct job_descriptor *job_desc, uint32_t submit_uid, char
                             num = (uint32_t)strtol(&token[i], &end_num,10);
                         }
                     }
-                    if (strcmp(token, "interactive") == 0 && num > 0) {
+                    if (strcmp(token, "interactive") == 0 && num >= nlic) {
                         have_license = true;
                         break;
                     }
@@ -62,11 +75,13 @@ extern int job_submit(struct job_descriptor *job_desc, uint32_t submit_uid, char
             if (!have_license) {
                 tmp_str = xmalloc(strlen(job_desc->licenses) + 1 + 13 + 1);
                 strcpy(tmp_str, job_desc->licenses);
-                strcat(tmp_str, ",interactive:1");
+                strcat(tmp_str, ",");
+                strcat(tmp_str, licstr);
                 xfree(job_desc->licenses);
                 job_desc->licenses = tmp_str;
             }
         }
+        xfree(licstr);
     }
     return SLURM_SUCCESS;
 }
@@ -83,6 +98,11 @@ extern int job_modify(struct job_descriptor *job_desc, struct job_record *job_pt
     if (!have_interactive) {
         debug("limit_interactive: job_modify: not interactive, ignoring");
         return SLURM_SUCCESS;
+    }
+
+    // for now, can't change max_nodes
+    if (job_desc->max_nodes != NO_VAL) {
+        return ESLURM_NOT_SUPPORTED;
     }
 
     // add interactive to wanted licenses, if NULL, no change is needed
