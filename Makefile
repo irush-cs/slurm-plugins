@@ -9,16 +9,14 @@ BUILDDIR = $(shell echo build.`uname -s`-`uname -m`)
 
 all:
 
-$(BUILDDIR):
-	mkdir -p $(BUILDDIR)
-
 define _compile
 all: $(1).so
 .PHONY: $(1) $(1).so
 $(1): $(1).so
 $(1).so: $(BUILDDIR)/$(1).so
 
-$(BUILDDIR)/$(1).so: $(1).c $(BUILDDIR)
+$(BUILDDIR)/$(1).so: $(1).c
+	mkdir -p $(BUILDDIR)
 	$$(CC) $$(CPPFLAGS) $$(CFLAGS) -shared $$< -o $$@
 	chmod a-x $$@
 

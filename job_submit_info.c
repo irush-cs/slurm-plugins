@@ -105,6 +105,9 @@ extern int job_submit(struct job_descriptor *job_desc, uint32_t submit_uid, char
     snprintf(buf, sizeof(buf), "max_nodes: %i\n", job_desc->max_nodes);
     fwrite(buf, 1, strlen(buf), out);
 
+    snprintf(buf, sizeof(buf), "gres: %s\n", job_desc->gres);
+    fwrite(buf, 1, strlen(buf), out);
+
 //	char *array_inx;	/* job array index values */
 //	void *array_bitmap;	/* NOTE: Set by slurmctld */
 //	time_t begin_time;	/* delay initiation until this time */
@@ -142,8 +145,6 @@ extern int job_submit(struct job_descriptor *job_desc, uint32_t submit_uid, char
 //				 * from job's allocation, default NONE */
 //	char *features;		/* required feature specification,
 //				 * default NONE */
-//	char *gres;		/* comma separated list of required generic
-//				 * resources, default NONE */
 //	uint32_t group_id;	/* group to assume, if run as root. */
 //	uint16_t immediate;	/* 1 if allocate to run or fail immediately,
 //				 * 0 if to be queued awaiting resources */
