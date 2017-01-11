@@ -108,6 +108,9 @@ extern int job_submit(struct job_descriptor *job_desc, uint32_t submit_uid, char
     snprintf(buf, sizeof(buf), "gres: %s\n", job_desc->gres);
     fwrite(buf, 1, strlen(buf), out);
 
+    snprintf(buf, sizeof(buf), "partition: %s\n", job_desc->partition);
+    fwrite(buf, 1, strlen(buf), out);
+
 //	char *array_inx;	/* job array index values */
 //	void *array_bitmap;	/* NOTE: Set by slurmctld */
 //	time_t begin_time;	/* delay initiation until this time */
@@ -164,8 +167,6 @@ extern int job_submit(struct job_descriptor *job_desc, uint32_t submit_uid, char
 //				 * see OPEN_MODE_* */
 //	uint16_t other_port;	/* port to send various notification msg to */
 //	uint8_t overcommit;	/* over subscribe resources, for batch only */
-//	char *partition;	/* name of requested partition,
-//				 * default in SLURM config */
 //	uint16_t plane_size;	/* plane size when task_dist =
 //				   SLURM_DIST_PLANE */
 //	uint8_t power_flags;	/* power management flags,

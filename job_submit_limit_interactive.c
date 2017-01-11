@@ -45,6 +45,11 @@ extern int job_submit(struct job_descriptor *job_desc, uint32_t submit_uid, char
         char* licstr = xstrdup("interactive:1");
         licstr[12] = ('0' + nlic);
 
+        if (job_desc->partition != NULL) {
+            xfree(job_desc->partition);
+        }
+        job_desc->partition = xstrdup("short");
+
         char* tmp_str;
         if (job_desc->licenses == NULL) {
             job_desc->licenses = xstrdup(licstr);
