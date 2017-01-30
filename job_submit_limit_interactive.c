@@ -19,6 +19,7 @@ const uint32_t plugin_version = SLURM_VERSION_NUMBER;
 
 static s_p_options_t limit_interactive_options[] = {
 	{"Partition", S_P_STRING},
+	{"DefaultLimit", S_P_UINT16},
 	{NULL}
 };
 
