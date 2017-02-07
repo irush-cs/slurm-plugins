@@ -1,5 +1,4 @@
 
-CPPFLAGS += -I/cs/system/irush/yard/slurm/slurm/linux-15.08.10-1 -I/cs/system/irush/yard/slurm/slurm/slurm.git
 CFLAGS += -fPIC -Wall -ggdb -O0
 
 PLUGINS = job_submit_limit_interactive \

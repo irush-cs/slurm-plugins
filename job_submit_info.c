@@ -1,3 +1,27 @@
+/******************************************************************************
+ *
+ *   job_submit_info.c
+ *
+ *   Copyright (C) 2016 - 2017 Hebrew University of Jerusalem Israel, see
+ *   LICENSE file.
+ *
+ *   Author: Yair Yarom <irush@cs.huji.ac.il>
+ *
+ *   This program is free software; you can redistribute it and/or modify it
+ *   under the terms of the GNU General Public License as published by the Free
+ *   Software Foundation; either version 2 of the License, or (at your option)
+ *   any later version.
+ *
+ *   This program is distributed in the hope that it will be useful, but
+ *   WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+ *   or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
+ *   for more details.
+ *
+ *   You should have received a copy of the GNU General Public License along
+ *   with this program; if not, write to the Free Software Foundation, Inc., 59
+ *   Temple Place, Suite 330, Boston, MA 02111-1307 USA
+ *
+ *****************************************************************************/
 
 #include <slurm/slurm.h>
 #include <slurm/slurm_errno.h>
@@ -23,7 +47,7 @@ extern int fini (void) {
 extern int job_submit(struct job_descriptor *job_desc, uint32_t submit_uid, char **err_msg) {
     // NOTE: no job id actually exists yet (=NO_VAL)
     char buf[1024];
-    snprintf(buf, sizeof(buf), "/net/mantis/mnt/local/tmp/slurm/%zi.out", time(NULL));
+    snprintf(buf, sizeof(buf), "/tmp/slurm-jobs-info-%zi.out", time(NULL));
     FILE* out = fopen(buf, "w");
     //if (out == NULL)
     //    return SLURM_ERROR;
