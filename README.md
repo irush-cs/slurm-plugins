@@ -45,3 +45,18 @@ passed.
 Useful to avoid unwanted modules/PATHs to be loaded on the submission node and
 passed to the execution nodes.
 
+# spank\_lmod
+
+This plugins is the second half of TaskProlog-lmod.sh. It makes sure that all
+the modules were purged before distributing to the nodes. This is required as
+some environment variables will be retained if the module doesn't exists in the
+compute node (so the purge won't unset them).
+
+The plugin also adds the --module option so that modules can be loaded through
+srun/sbatch directly without needing additional bash script wrapper.
+
+The plugin uses the TaskProlog-lmod.sh script, so it needs it as a parameter in
+the plugstack.conf file. e.g.
+
+> optional spank_lmod.so /etc/slurm/TaskProlog/TaskProlog-lmod.sh
+
