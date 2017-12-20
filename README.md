@@ -34,3 +34,14 @@ plugin. Available options are `Partition` and `DefaultLimit`.
 Used for developments. Writes parts of the job\_descriptor data to a file in
 `/tmp`.
 
+# proepilogs/TaskProlog-lmod.sh
+
+purge all lmod modules and loads the defaults (from /etc/lmod/lmodrc and
+~/.lmodrc).
+
+This only updates the environment variable, so aliases and other goodies aren't
+passed.
+
+Useful to avoid unwanted modules/PATHs to be loaded on the submission node and
+passed to the execution nodes.
+
