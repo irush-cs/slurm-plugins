@@ -49,6 +49,8 @@ static s_p_options_t limit_interactive_options[] = {
 
 char* limit_partition = NULL;
 
+uint32_t license_get_total_cnt_from_list(List license_list, char *name);
+
 extern int init (void) {
     char *conf_file = NULL;
     struct stat config_stat;
@@ -213,4 +215,31 @@ extern int job_modify(struct job_descriptor *job_desc, struct job_record *job_pt
     }
 
     return SLURM_SUCCESS;
+}
+
+
+/* Find a license_t record by license name (for use by list_find_first), also
+   from slurmctld/licenses.c */
+static int _license_find_rec(void *x, void *key)
+{
+	licenses_t *license_entry = (licenses_t *) x;
+	char *name = (char *) key;
+
+	if ((license_entry->name == NULL) || (name == NULL))
+		return 0;
+	if (xstrcmp(license_entry->name, name))
+		return 0;
+	return 1;
+}
+
+/* Get how many of a given license are in a list (from slurmctld/licenses.c) */
+uint32_t license_get_total_cnt_from_list(List license_list, char *name) {
+    licenses_t *license_entry;
+    uint32_t total = 0;
+
+    license_entry = list_find_first(license_list, _license_find_rec, name);
+
+    if(license_entry)
+        total = license_entry->total;
+    return total;
 }
