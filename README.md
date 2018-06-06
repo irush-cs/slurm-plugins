@@ -60,3 +60,10 @@ the plugstack.conf file. e.g.
 
 > optional spank_lmod.so /etc/slurm/TaskProlog/TaskProlog-lmod.sh
 
+# job\_submit\_default_options
+
+Sets some default options to jobs.
+
+The `default_options.conf` configuration file is used to set the default
+values. Currently only "cluster_features" is supported (for the
+--cluster-constraint option).

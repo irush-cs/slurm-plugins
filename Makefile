@@ -3,6 +3,7 @@ CFLAGS += -fPIC -Wall -ggdb -O0
 
 PLUGINS = job_submit_limit_interactive \
           job_submit_info \
+	  job_submit_default_options \
           spank_lmod
 
 BUILDDIR = $(shell echo build.`uname -s`-`uname -m`)

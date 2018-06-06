@@ -135,6 +135,12 @@ extern int job_submit(struct job_descriptor *job_desc, uint32_t submit_uid, char
     snprintf(buf, sizeof(buf), "partition: %s\n", job_desc->partition);
     fwrite(buf, 1, strlen(buf), out);
 
+    snprintf(buf, sizeof(buf), "features: %s\n", job_desc->features);
+    fwrite(buf, 1, strlen(buf), out);
+
+    snprintf(buf, sizeof(buf), "cluster_features: %s\n", job_desc->cluster_features);
+    fwrite(buf, 1, strlen(buf), out);
+
 //	char *array_inx;	/* job array index values */
 //	void *array_bitmap;	/* NOTE: Set by slurmctld */
 //	time_t begin_time;	/* delay initiation until this time */
@@ -170,8 +176,6 @@ extern int job_submit(struct job_descriptor *job_desc, uint32_t submit_uid, char
 //	uint32_t env_size;	/* element count in environment */
 //	char *exc_nodes;	/* comma separated list of nodes excluded
 //				 * from job's allocation, default NONE */
-//	char *features;		/* required feature specification,
-//				 * default NONE */
 //	uint32_t group_id;	/* group to assume, if run as root. */
 //	uint16_t immediate;	/* 1 if allocate to run or fail immediately,
 //				 * 0 if to be queued awaiting resources */
