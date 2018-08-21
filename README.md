@@ -67,3 +67,10 @@ Sets some default options to jobs.
 The `default_options.conf` configuration file is used to set the default
 values. Currently only "cluster_features" is supported (for the
 --cluster-constraint option).
+
+# job\_submit\_vaild\_partitions
+
+Based on SLURM's `job_submit/all_partitions` plugin. Makes additional checks
+before adding all partitions. Checks AllowAccounts, DenyAccounts and
+MaxTime. This is to avoid unintended Reasons such as AccountNotAllowed or
+PartitionTimeLimit.
