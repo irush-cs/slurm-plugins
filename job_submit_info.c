@@ -27,6 +27,7 @@
 #include <slurm/slurm_errno.h>
 
 #include "src/slurmctld/slurmctld.h"
+#include "src/common/assoc_mgr.h"
 
 #include <stdio.h>
 #include <time.h>
@@ -274,6 +275,17 @@ extern int job_submit(struct job_descriptor *job_desc, uint32_t submit_uid, char
 //	char *wckey;            /* wckey for job */
 //} job_desc_msg_t;
 //
+
+    slurmdb_user_rec_t user;
+
+    memset(&user, 0, sizeof(slurmdb_user_rec_t));
+    user.uid = job_desc->user_id;
+    if (assoc_mgr_fill_in_user(acct_db_conn, &user, accounting_enforce, NULL) != SLURM_ERROR) {
+        snprintf(buf, sizeof(buf), "default account: %s\n", user.default_acct);
+    } else {
+        snprintf(buf, sizeof(buf), "default account: %s\n", "(null)");
+    }
+    fwrite(buf, 1, strlen(buf), out);
 
     fflush(out);
     fclose(out);
