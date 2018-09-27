@@ -1,3 +1,51 @@
+# SLURM plugins
+
+A collection of SLURM plugins used at the Hebrew University of Jerusalem,
+School of Computer Science and Engineering.
+
+# Table of Contents
+
+* [Compilation](#compilation)
+* [job_submit_limit_interactive](#job_submit_limit_interactive)
+* [job_submit_info](#job_submit_info)
+* [proepilogs/TaskProlog-lmod.sh](#proepilogstaskprolog-lmodsh)
+* [spank_lmod](#spank_lmod)
+* [job_submit_default_options](#job_submit_default_options)
+* [job_submit_valid_partitions](#job_submit_valid_partitions)
+
+# Compilation
+
+Some plugins here are written in `c` and needs to be compiled. For that, basic
+compilation utilities needs to already be installed (compiler, make,
+etc.). Slurm development files (e.g. slurm-dev, slurm-devel, slurmdb-dev, etc.)
+should also be installed. Also, the plugins uses some slurm header files which
+are not necessarily available through slurm*-dev packages, so the slurm sources
+should be available as well.
+
+For the compilation to work the CPPFLAGS environment variable should be set
+with the proper directories. E.g. if the slurm sources are in `/slurm/source/`
+directory then:
+```
+export CPPFLAGS="-I/slurm/source"
+```
+If slurm is built manually (i.e. no slurm-dev distribution package is used), and
+the build is in e.g. `/slurm/build`, then:
+```
+export CPPFLAGS="-I/slurm/source -I/slurm/build"
+```
+
+With the CPPFLAGS set, run `make` to compile the plugins:
+```
+make
+```
+
+The compiled plugins (*.so files) will reside in a `build.<os>-<arch>`
+directory.  To install, they need to be copied to the slurm plugin
+directory. The slurm plugin directory can be obtained by running:
+```
+scontrol show config | grep PluginDir
+```
+
 # job\_submit\_limit\_interactive
 
 Limits interactive jobs. Interactive jobs are jobs that run outside `sbatch`,
@@ -60,7 +108,7 @@ the plugstack.conf file. e.g.
 
 > optional spank_lmod.so /etc/slurm/TaskProlog/TaskProlog-lmod.sh
 
-# job\_submit\_default_options
+# job\_submit\_default\_options
 
 Sets some default options to jobs.
 
@@ -68,7 +116,7 @@ The `default_options.conf` configuration file is used to set the default
 values. Currently only "cluster_features" is supported (for the
 --cluster-constraint option).
 
-# job\_submit\_vaild\_partitions
+# job\_submit\_valid\_partitions
 
 Based on SLURM's `job_submit/all_partitions` plugin. Makes additional checks
 before adding all partitions. Checks AllowAccounts, DenyAccounts and
