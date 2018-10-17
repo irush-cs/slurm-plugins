@@ -12,6 +12,7 @@ School of Computer Science and Engineering.
 * [spank_lmod](#spank_lmod)
 * [job_submit_default_options](#job_submit_default_options)
 * [job_submit_valid_partitions](#job_submit_valid_partitions)
+* [job_submit_meta_partitions](#job_submit_meta_partitions)
 
 # Compilation
 
@@ -122,3 +123,23 @@ Based on SLURM's `job_submit/all_partitions` plugin. Makes additional checks
 before adding all partitions. Checks AllowAccounts, DenyAccounts and
 MaxTime. This is to avoid unintended Reasons such as AccountNotAllowed or
 PartitionTimeLimit.
+
+# job\_submit\_meta\_partitions
+
+Create meta partitions which are replaced on submit. This is useful if there
+are several partitions with things in common, so users won't have to list all
+of them explicitly.
+
+The `meta_partitions.conf` configuration file should be used to configure the
+meta partitions. Each line has two keys:
+* MetaPartition - The name of the partition as should be specified by the user
+* Partitions - The partitions to replace with
+
+For example:
+```
+MetaPartition=short Partitions=short-low,short-high
+MetaPartition=long Partitions=long-low,long-high
+```
+
+Can be used so that users will specify `-p short` instead of `-p
+short-low,short-high`.
