@@ -23,26 +23,27 @@ should also be installed. Also, the plugins uses some slurm header files which
 are not necessarily available through slurm*-dev packages, so the slurm sources
 should be available as well.
 
-For the compilation to work the CPPFLAGS environment variable should be set
-with the proper directories. E.g. if the slurm sources are in `/slurm/source/`
-directory then:
+For the compilation to work the `C\_INCLUDE\_PATH` (or `CPATH`) environment
+variable should be set with the proper directories. E.g. if the slurm sources
+are in `/slurm/source/` directory then:
 ```
-export CPPFLAGS="-I/slurm/source"
+export C_INCLUDE_PATH="/slurm/source"
 ```
 If slurm is built manually (i.e. no slurm-dev distribution package is used), and
 the build is in e.g. `/slurm/build`, then:
 ```
-export CPPFLAGS="-I/slurm/source -I/slurm/build"
+export C_INCLUDE_PATH="/slurm/source:/slurm/build"
 ```
 
-With the CPPFLAGS set, run `make` to compile the plugins:
+With the `C\_INCLUDE\_PATH` set, run `make` to compile the plugins:
 ```
 make
 ```
 
-The compiled plugins (*.so files) will reside in a `build.<os>-<arch>`
-directory.  To install, they need to be copied to the slurm plugin
-directory. The slurm plugin directory can be obtained by running:
+The compiled plugins (*.so files) will reside in a
+`build.<os>-<arch>-<version>` directory.  To install, they need to be copied to
+the slurm plugin directory. The slurm plugin directory can be obtained by
+running:
 ```
 scontrol show config | grep PluginDir
 ```

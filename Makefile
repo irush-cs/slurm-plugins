@@ -8,7 +8,7 @@ PLUGINS = job_submit_limit_interactive \
 	  job_submit_meta_partitions \
           spank_lmod
 
-BUILDDIR = $(shell echo build.`uname -s`-`uname -m`)
+BUILDDIR = $(shell echo build.`uname -s`-`uname -m`-`./slurm-version.sh`)
 
 all:
 
