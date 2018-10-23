@@ -23,7 +23,7 @@ should also be installed. Also, the plugins uses some slurm header files which
 are not necessarily available through slurm*-dev packages, so the slurm sources
 should be available as well.
 
-For the compilation to work the `C\_INCLUDE\_PATH` (or `CPATH`) environment
+For the compilation to work the `C_INCLUDE_PATH` (or `CPATH`) environment
 variable should be set with the proper directories. E.g. if the slurm sources
 are in `/slurm/source/` directory then:
 ```
@@ -35,7 +35,7 @@ the build is in e.g. `/slurm/build`, then:
 export C_INCLUDE_PATH="/slurm/source:/slurm/build"
 ```
 
-With the `C\_INCLUDE\_PATH` set, run `make` to compile the plugins:
+With the `C_INCLUDE_PATH` set, run `make` to compile the plugins:
 ```
 make
 ```
