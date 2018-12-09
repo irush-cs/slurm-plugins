@@ -6,7 +6,7 @@ for var in $(compgen -e); do
     origenv[$var]="${!var}"
 done
 
-module purge
+module reset 2>/dev/null
 if ! [[ "$1" = "purge" ]]; then
     [[ -e /etc/lmod/lmodrc ]] && . /etc/lmod/lmodrc
     [[ -e ~/.lmodrc ]] && . ~/.lmodrc

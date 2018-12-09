@@ -59,6 +59,7 @@ static int _run_script_and_set_env(const char *path);
 int slurm_spank_init(spank_t spank, int ac, char **av) {
     int i, j, rc = ESPANK_SUCCESS;
     modules = 0;
+    //slurm_info("spank_lmod: init");
 
     for (i = 0; spank_option_array[i].name; i++) {
         j = spank_option_register(spank, &spank_option_array[i]);
@@ -76,6 +77,7 @@ int slurm_spank_init_post_opt(spank_t spank, int ac, char **av) {
 
     switch (spank_context()) {
       case S_CTX_REMOTE:
+          //slurm_info("spank_lmod: init post opt: remote context");
           if (modules) {
               rc = spank_setenv(spank, "SPANK_MODULES", modules, 1);
               free(modules);
@@ -83,11 +85,14 @@ int slurm_spank_init_post_opt(spank_t spank, int ac, char **av) {
           }
           break;
       case S_CTX_LOCAL:
+      case S_CTX_ALLOCATOR:
+          //slurm_info("spank_lmod: init post opt: local/allocator context");
           if (ac) {
               return _run_script_and_set_env(av[0]);
           }
           break;
       default:
+          //slurm_info("spank_lmod: init post opt: %i context", spank_context());
           break;
     }
 
