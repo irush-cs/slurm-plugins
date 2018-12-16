@@ -85,6 +85,22 @@ extern int job_submit(struct job_descriptor *job_desc, uint32_t submit_uid, char
         fwrite(buf, 1, strlen(buf), out);
     }
 
+    snprintf(buf, sizeof(buf), "spank_job_env_size: %i\n", job_desc->spank_job_env_size);
+    fwrite(buf, 1, strlen(buf), out);
+
+    for(int i = 0; i < job_desc->spank_job_env_size; i++) {
+        snprintf(buf, sizeof(buf), "spank_job_env[%i]: %s\n", i, job_desc->spank_job_env[i]);
+        fwrite(buf, 1, strlen(buf), out);
+    }
+
+    snprintf(buf, sizeof(buf), "env_size: %i\n", job_desc->env_size);
+    fwrite(buf, 1, strlen(buf), out);
+
+    for(int i = 0; i < job_desc->env_size; i++) {
+        snprintf(buf, sizeof(buf), "environment[%i]: %s\n", i, job_desc->environment[i]);
+        fwrite(buf, 1, strlen(buf), out);
+    }
+
     snprintf(buf, sizeof(buf), "qos: %s\n", job_desc->qos);
     fwrite(buf, 1, strlen(buf), out);
 
@@ -172,9 +188,6 @@ extern int job_submit(struct job_descriptor *job_desc, uint32_t submit_uid, char
 //	time_t end_time;	/* time by which job must complete, used for
 //				 * job update only now, possible deadline
 //				 * scheduling in the future */
-//	char **environment;	/* environment variables to set for job,
-//				 *  name=value pairs, one per line */
-//	uint32_t env_size;	/* element count in environment */
 //	char *exc_nodes;	/* comma separated list of nodes excluded
 //				 * from job's allocation, default NONE */
 //	uint32_t group_id;	/* group to assume, if run as root. */
@@ -216,9 +229,6 @@ extern int job_submit(struct job_descriptor *job_desc, uint32_t submit_uid, char
 //				 * 0 if job needs exclusive access to the node,
 //				 * or NO_VAL to accept the system default.
 //				 * SHARED_FORCE to eliminate user control. */
-//	char **spank_job_env;	/* environment variables for job prolog/epilog
-//				 * scripts as set by SPANK plugins */
-//	uint32_t spank_job_env_size; /* element count in spank_env */
 //	uint32_t task_dist;	/* see enum task_dist_state */
 //	uint32_t user_id;	/* set only if different from current UID,
 //				 * can only be explicitly set by user root */

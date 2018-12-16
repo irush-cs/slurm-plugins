@@ -13,6 +13,8 @@ School of Computer Science and Engineering.
 * [job_submit_default_options](#job_submit_default_options)
 * [job_submit_valid_partitions](#job_submit_valid_partitions)
 * [job_submit_meta_partitions](#job_submit_meta_partitions)
+* [job_submit_killable](#job_submit_killable)
+* [spank_killable](#spank_killable)
 
 # Compilation
 
@@ -144,3 +146,26 @@ MetaPartition=long Partitions=long-low,long-high
 
 Can be used so that users will specify `-p short` instead of `-p
 short-low,short-high`.
+
+# job\_submit\_killable
+
+This plugin is used to set some sort of auto-account when a certain flag is
+passed. This is used for a special preemptable accounts, which is why it's
+named "killable".
+
+If the --killable flag was set (using the `spank_killable` plugin), this plugin
+will set the account according to the `killable.conf` configuration file. The
+configuration for the accounts can be either per user, or per primary
+group. For example:
+```
+User=user1 Account=killable-1
+PrimaryGroup=group2 Account=killable-2
+User=*default Account=killable-3
+```
+The `*default` user is special and will set the account if no other user or
+primary group were found.
+
+# spank\_killable
+
+This plugin does nothing more than to add the `--killable` flag which the
+`job_submit_killable` plugin uses.

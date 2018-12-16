@@ -6,7 +6,10 @@ PLUGINS = job_submit_limit_interactive \
 	  job_submit_default_options \
 	  job_submit_valid_partitions \
 	  job_submit_meta_partitions \
-          spank_lmod
+	  job_submit_killable \
+          spank_lmod \
+          spank_killable
+
 
 BUILDDIR = $(shell echo build.`uname -s`-`uname -m`-`./slurm-version.sh`)
 
