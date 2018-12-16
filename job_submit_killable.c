@@ -296,7 +296,7 @@ extern int job_submit(struct job_descriptor *job_desc, uint32_t submit_uid, char
             }
             job_desc->qos = xstrdup(default_qos);
         }
-        info("job_submit/killable: killable, setting account: %s", job_desc->account);
+        info("job_submit/killable: killable, setting account/qos: %s/%s", job_desc->account, job_desc->qos);
 
         if (default_account) {
             xfree(default_account);
