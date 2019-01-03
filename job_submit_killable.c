@@ -42,6 +42,7 @@ s_p_options_t user_options[] = {
     {"User", S_P_STRING},
     {"Account", S_P_STRING},
     {"QOS", S_P_STRING},
+    {"Partition", S_P_STRING},
     {NULL}
 };
 
@@ -49,6 +50,7 @@ s_p_options_t primary_group_options[] = {
     {"PrimaryGroup", S_P_STRING},
     {"Account", S_P_STRING},
     {"QOS", S_P_STRING},
+    {"Partition", S_P_STRING},
     {NULL}
 };
 
@@ -62,10 +64,12 @@ int user_count = 0;
 char** user_keys = NULL;
 char** user_values = NULL;
 char** user_qos = NULL;
+char** user_partition = NULL;
 int pgroup_count = 0;
 char** pgroup_keys = NULL;
 char** pgroup_values = NULL;
 char** pgroup_qos = NULL;
+char** pgroup_partition = NULL;
 
 extern int init (void) {
 
@@ -88,24 +92,28 @@ extern int init (void) {
         fatal("Can't parse killable.conf %s: %m", conf_file);
 
     s_p_get_line(&users, &user_count, "User", options);
-    s_p_get_line(&pgroups, &user_count, "PrimaryGroup", options);
+    s_p_get_line(&pgroups, &pgroup_count, "PrimaryGroup", options);
 
     xfree(conf_file);
 
     user_keys = xmalloc(user_count * sizeof(char*));
     user_values = xmalloc(user_count * sizeof(char*));
     user_qos = xmalloc(user_count * sizeof(char*));
-    pgroup_keys = xmalloc(user_count * sizeof(char*));
-    pgroup_values = xmalloc(user_count * sizeof(char*));
-    pgroup_qos = xmalloc(user_count * sizeof(char*));
+    user_partition = xmalloc(user_count * sizeof(char*));
+    pgroup_keys = xmalloc(pgroup_count * sizeof(char*));
+    pgroup_values = xmalloc(pgroup_count * sizeof(char*));
+    pgroup_qos = xmalloc(pgroup_count * sizeof(char*));
+    pgroup_partition = xmalloc(pgroup_count * sizeof(char*));
     
     for (int i = 0; i < user_count; i++) {
         char* user;
         char* account;
         char* qos;
+        char* partition;
         user_keys[i] = NULL;
         user_values[i] = NULL;
         user_qos[i] = NULL;
+        user_partition[i] = NULL;
         if (s_p_get_string(&user, "User", users[i])) {
             user_keys[i] = user;
             if (s_p_get_string(&account, "Account", users[i])) {
@@ -113,6 +121,9 @@ extern int init (void) {
             }
             if (s_p_get_string(&qos, "QOS", users[i])) {
                 user_qos[i] = qos;
+            }
+            if (s_p_get_string(&partition, "Partition", users[i])) {
+                user_partition[i] = partition;
             }
 
             if (strlen(buffer) < sizeof(buffer) - 1) {
@@ -130,9 +141,11 @@ extern int init (void) {
         char* pgroup;
         char* account;
         char* qos;
+        char* partition;
         pgroup_keys[i] = NULL;
         pgroup_values[i] = NULL;
         pgroup_qos[i] = NULL;
+        pgroup_partition[i] = NULL;
         if (s_p_get_string(&pgroup, "PrimaryGroup", pgroups[i])) {
             pgroup_keys[i] = pgroup;
             if (s_p_get_string(&account, "Account", pgroups[i])) {
@@ -140,6 +153,9 @@ extern int init (void) {
             }
             if (s_p_get_string(&qos, "QOS", pgroups[i])) {
                 pgroup_qos[i] = qos;
+            }
+            if (s_p_get_string(&partition, "Partition", pgroups[i])) {
+                pgroup_partition[i] = partition;
             }
 
             if (strlen(buffer) < sizeof(buffer) - 1) {
@@ -174,6 +190,10 @@ extern int fini (void) {
             xfree(user_qos[i]);
             user_qos[i] = NULL;
         }
+        if (user_partition[i]) {
+            xfree(user_partition[i]);
+            user_partition[i] = NULL;
+        }
     }
     for (int i = 0 ; i < pgroup_count; i++) {
         xfree(pgroup_keys[i]);
@@ -186,14 +206,20 @@ extern int fini (void) {
             xfree(pgroup_qos[i]);
             pgroup_qos[i] = NULL;
         }
+        if (pgroup_partition[i]) {
+            xfree(pgroup_partition[i]);
+            pgroup_partition[i] = NULL;
+        }
     }
     xfree(user_keys);
     xfree(user_values);
     xfree(user_qos);
+    xfree(user_partition);
     user_count = 0;
     xfree(pgroup_keys);
     xfree(pgroup_values);
     xfree(pgroup_qos);
+    xfree(pgroup_partition);
     pgroup_count = 0;
     return SLURM_SUCCESS;
 }
@@ -203,8 +229,10 @@ extern int job_submit(struct job_descriptor *job_desc, uint32_t submit_uid, char
     slurmdb_user_rec_t user;
     bool found_account = false;
     bool found_qos = false;
+    bool found_partition = false;
     char* default_account = NULL;
     char* default_qos = NULL;
+    char* default_partition = NULL;
 
     for (int i = 0; i < job_desc->spank_job_env_size; i++) {
         if (strcmp(job_desc->spank_job_env[i], "_SLURM_SPANK_OPTION_killable_killable=(null)") == 0) {
@@ -237,13 +265,30 @@ extern int job_submit(struct job_descriptor *job_desc, uint32_t submit_uid, char
                     job_desc->qos = xstrdup(user_qos[i]);
                     found_qos = true;
                 }
-            }
-            if (!found_account && strcmp(user_keys[i], "*default") == 0) {
-                if (user_values[i]) {
-                    default_account = xstrdup(user_values[i]);
+                if (user_partition[i]) {
+                    if (job_desc->partition) {
+                        xfree(job_desc->partition);
+                    }
+                    job_desc->partition = xstrdup(user_partition[i]);
+                    found_partition = true;
                 }
-                if (user_qos[i]) {
-                    default_qos = xstrdup(user_qos[i]);
+            }
+
+            if (strcmp(user_keys[i], "*default") == 0) {
+                if (!found_account) {
+                    if (user_values[i]) {
+                        default_account = xstrdup(user_values[i]);
+                    }
+                }
+                if (!found_qos) {
+                    if (user_qos[i]) {
+                        default_qos = xstrdup(user_qos[i]);
+                    }
+                }
+                if (!found_partition) {
+                    if (user_partition[i]) {
+                        default_partition = xstrdup(user_partition[i]);
+                    }
                 }
             }
         }
@@ -276,8 +321,15 @@ extern int job_submit(struct job_descriptor *job_desc, uint32_t submit_uid, char
                         if (job_desc->qos) {
                             xfree(job_desc->qos);
                         }
-                        job_desc->qos = xstrdup(pgroup_values[i]);
+                        job_desc->qos = xstrdup(pgroup_qos[i]);
                         found_qos = true;
+                    }
+                    if (pgroup_partition[i]) {
+                        if (job_desc->partition) {
+                            xfree(job_desc->partition);
+                        }
+                        job_desc->partition = xstrdup(pgroup_partition[i]);
+                        found_partition = true;
                     }
                 }
             }
@@ -296,7 +348,13 @@ extern int job_submit(struct job_descriptor *job_desc, uint32_t submit_uid, char
             }
             job_desc->qos = xstrdup(default_qos);
         }
-        info("job_submit/killable: killable, setting account/qos: %s/%s", job_desc->account, job_desc->qos);
+        if (!found_partition && default_partition) {
+            if (job_desc->partition) {
+                xfree(job_desc->partition);
+            }
+            job_desc->partition = xstrdup(default_partition);
+        }
+        info("job_submit/killable: killable, setting account/partition/qos: %s/%s/%s", job_desc->account, job_desc->partition, job_desc->qos);
 
         if (default_account) {
             xfree(default_account);
@@ -305,6 +363,10 @@ extern int job_submit(struct job_descriptor *job_desc, uint32_t submit_uid, char
         if (default_qos) {
             xfree(default_qos);
             default_qos = NULL;
+        }
+        if (default_partition) {
+            xfree(default_partition);
+            default_partition = NULL;
         }
     } else {
         info("job_submit/killable: job not killable");

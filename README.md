@@ -149,21 +149,22 @@ short-low,short-high`.
 
 # job\_submit\_killable
 
-This plugin is used to set some sort of auto-account/qos when a certain flag is
-passed. This is used for a special preemptable accounts, which is why it's
-named "killable".
+This plugin is used to set some sort of auto-account/qos/partition when a
+certain flag is passed. This is used for a special preemptable accounts, which
+is why it's named "killable".
 
 If the --killable flag was set (using the `spank_killable` plugin), this plugin
-will set the account and qos according to the `killable.conf` configuration
-file. The configuration for the accounts can be either per user, or per primary
+will set the account, qos and partition according to the `killable.conf`
+configuration file. The configuration can be either per user, or per primary
 group. For example:
 ```
 User=user1 Account=killable-1
+User=user2 QOS=qos-1 Partition=partition-1
 PrimaryGroup=group2 Account=killable-2 QOS=qos-2
-User=*default Account=killable-3 QOS=qos-1
+User=*default Account=killable-3 QOS=qos-1 Partition=partition-2
 ```
-The `*default` user is special and will set the account if no other user or
-primary group were found.
+The `*default` user is special and will set the account, qos or partition
+unless they were set by other explicit line.
 
 # spank\_killable
 
