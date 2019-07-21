@@ -100,7 +100,11 @@ extern int job_submit(struct job_descriptor *job_desc, uint32_t submit_uid,
 	} else {
 		memset(&user, 0, sizeof(slurmdb_user_rec_t));
 		user.uid = job_desc->user_id;
+#if SLURM_VERSION_NUMBER < SLURM_VERSION_NUM(19,5,0)
 		if (assoc_mgr_fill_in_user(acct_db_conn, &user, accounting_enforce, NULL) != SLURM_ERROR) {
+#else
+                if (assoc_mgr_fill_in_user(acct_db_conn, &user, accounting_enforce, NULL, false) != SLURM_ERROR) {
+#endif
 			account = user.default_acct;
 		}
 	}

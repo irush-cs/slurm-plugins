@@ -146,8 +146,14 @@ extern int job_submit(struct job_descriptor *job_desc, uint32_t submit_uid, char
     snprintf(buf, sizeof(buf), "max_nodes: %i\n", job_desc->max_nodes);
     fwrite(buf, 1, strlen(buf), out);
 
+#if SLURM_VERSION_NUMBER < SLURM_VERSION_NUM(19,5,0)
     snprintf(buf, sizeof(buf), "gres: %s\n", job_desc->gres);
     fwrite(buf, 1, strlen(buf), out);
+#else
+    //uint32_t gres_detail_cnt; /* Count of gres_detail_str records,
+    //			 * one per allocated node */
+    //char **gres_detail_str;	/* Details of GRES count/index alloc per node */
+#endif
 
     snprintf(buf, sizeof(buf), "partition: %s\n", job_desc->partition);
     fwrite(buf, 1, strlen(buf), out);
@@ -290,7 +296,11 @@ extern int job_submit(struct job_descriptor *job_desc, uint32_t submit_uid, char
 
     memset(&user, 0, sizeof(slurmdb_user_rec_t));
     user.uid = job_desc->user_id;
+#if SLURM_VERSION_NUMBER < SLURM_VERSION_NUM(19,5,0)
     if (assoc_mgr_fill_in_user(acct_db_conn, &user, accounting_enforce, NULL) != SLURM_ERROR) {
+#else
+    if (assoc_mgr_fill_in_user(acct_db_conn, &user, accounting_enforce, NULL, false) != SLURM_ERROR) {
+#endif
         snprintf(buf, sizeof(buf), "default account: %s\n", user.default_acct);
     } else {
         snprintf(buf, sizeof(buf), "default account: %s\n", "(null)");

@@ -243,9 +243,13 @@ extern int job_submit(struct job_descriptor *job_desc, uint32_t submit_uid, char
     if (is_killable) {
         memset(&user, 0, sizeof(slurmdb_user_rec_t));
         user.uid = job_desc->user_id;
+#if SLURM_VERSION_NUMBER < SLURM_VERSION_NUM(19,5,0)
         if (assoc_mgr_fill_in_user(acct_db_conn, &user, accounting_enforce, NULL) == SLURM_ERROR) {
+#else
+        if (assoc_mgr_fill_in_user(acct_db_conn, &user, accounting_enforce, NULL, false) == SLURM_ERROR) {
+#endif
             error("job_submit/killable: can't get user name");
-            return SLURM_FAILURE;
+            return SLURM_ERROR;
         }
 
         // first try specific user
@@ -299,13 +303,13 @@ extern int job_submit(struct job_descriptor *job_desc, uint32_t submit_uid, char
             char buffer[4096];
             if (getpwuid_r(user.uid, &pwd, buffer, sizeof(buffer), &result) != 0 || result == NULL) {
                 error("job_submit/killable: can't get user %i pw", user.uid);
-                return SLURM_FAILURE;
+                return SLURM_ERROR;
             }
             struct group gr, *gresult = NULL;
             gid_t gid = pwd.pw_gid;
             if (getgrgid_r(gid, &gr, buffer, sizeof(buffer), &gresult) != 0 || gresult == NULL) {
                 error("job_submit/killable: can't get group %i gr", gid);
-                return SLURM_FAILURE;
+                return SLURM_ERROR;
             }
                 
             for (int i = 0; i < pgroup_count; i++) {

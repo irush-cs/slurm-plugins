@@ -5,7 +5,7 @@ tmp=`mktemp /tmp/slurm-version.XXXXXX`;
 #include <slurm/slurm.h>
 #include <stdio.h>
 int main() {
-printf(\"%i.%i.%i\\n\", SLURM_VERSION_MAJOR(SLURM_VERSION_NUMBER), SLURM_VERSION_MINOR(SLURM_VERSION_NUMBER), SLURM_VERSION_MICRO(SLURM_VERSION_NUMBER));
+printf(\"%i.%02i.%i\\n\", SLURM_VERSION_MAJOR(SLURM_VERSION_NUMBER), SLURM_VERSION_MINOR(SLURM_VERSION_NUMBER), SLURM_VERSION_MICRO(SLURM_VERSION_NUMBER));
 return 0;
 };" >| $tmp
 
