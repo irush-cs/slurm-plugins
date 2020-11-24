@@ -42,26 +42,34 @@ extern int fini (void) {
     return SLURM_SUCCESS;
 }
 
+inline static bool _has_gpu_gres(const char* gres) {
+    if (gres) {
+        char *tmp_str;
+        tmp_str = xstrdup(gres);
+        char *last;
+        char *token = strtok_r(tmp_str, ",", &last);
+        while (token) {
+            if (strcmp(token, "gpu") == 0 || strncmp(token, "gpu:", 4) == 0) {
+                xfree(tmp_str);
+                return true;
+            }
+            token = strtok_r(NULL, ",", &last);
+        }
+        xfree(tmp_str);
+    }
+    return false;
+}
+
 extern int job_submit(struct job_descriptor *job_desc, uint32_t submit_uid, char **err_msg) {
 
     bool wants_gpu = false;
     bool wants_cpuonly = false;
 
     // check if wants gpu
-    if (job_desc->tres_per_node) {
-        char *tmp_str;
-        tmp_str = xstrdup(job_desc->tres_per_node);
-        char *last;
-        char *token = strtok_r(tmp_str, ",", &last);
-        while (token) {
-            if (strcmp(token, "gpu") == 0 || strncmp(token, "gpu:", 4) == 0) {
-                wants_gpu = true;
-                break;
-            }
-            token = strtok_r(NULL, ",", &last);
-        }
-        xfree(tmp_str);
-    }
+    wants_gpu = _has_gpu_gres(job_desc->tres_per_node);
+    if (!wants_gpu) wants_gpu = _has_gpu_gres(job_desc->tres_per_job);
+    if (!wants_gpu) wants_gpu = _has_gpu_gres(job_desc->tres_per_task);
+    if (!wants_gpu) wants_gpu = _has_gpu_gres(job_desc->tres_per_socket);
 
     debug("job_submit/cpuonly: %s gpu", (wants_gpu ? "wants" : "doesn't want"));
 
