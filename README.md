@@ -15,6 +15,7 @@ School of Computer Science and Engineering.
 * [job_submit_meta_partitions](#job_submit_meta_partitions)
 * [job_submit_killable](#job_submit_killable)
 * [spank_killable](#spank_killable)
+* [job_submit_cpuonly](#job_submit_cpuonly)
 
 # Compilation
 
@@ -170,3 +171,15 @@ unless they were set by other explicit line.
 
 This plugin does nothing more than to add the `--killable` flag which the
 `job_submit_killable` plugin uses.
+
+# job\_submit\_cpuonly
+
+This plugin adds a `cpuonly` feature to jobs that don't request any `gpu`
+gres. It is used in heterogeneous clusters with both CPU nodes and GPU nodes,
+when CPU-only jobs shouldn't run on the GPU nodes.
+
+For this to work properly, a `cpuonly` feature needs to be available on all
+nodes without a `gpu` gres. The script `verify-cpuonly.sh` can be used to
+verify the nodes are indeed set up appropriately.
+
+Currently users who want to circumvent this could use `scontrol update job`

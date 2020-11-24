@@ -7,6 +7,7 @@ PLUGINS = job_submit_limit_interactive \
 	  job_submit_valid_partitions \
 	  job_submit_meta_partitions \
 	  job_submit_killable \
+	  job_submit_cpuonly \
           spank_lmod \
           spank_killable
 
