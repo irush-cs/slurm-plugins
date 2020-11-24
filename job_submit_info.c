@@ -2,7 +2,7 @@
  *
  *   job_submit_info.c
  *
- *   Copyright (C) 2016 - 2017 Hebrew University of Jerusalem Israel, see
+ *   Copyright (C) 2016 - 2020 Hebrew University of Jerusalem Israel, see
  *   LICENSE file.
  *
  *   Author: Yair Yarom <irush@cs.huji.ac.il>
@@ -150,9 +150,14 @@ extern int job_submit(struct job_descriptor *job_desc, uint32_t submit_uid, char
     snprintf(buf, sizeof(buf), "gres: %s\n", job_desc->gres);
     fwrite(buf, 1, strlen(buf), out);
 #else
-    //uint32_t gres_detail_cnt; /* Count of gres_detail_str records,
-    //			 * one per allocated node */
-    //char **gres_detail_str;	/* Details of GRES count/index alloc per node */
+    snprintf(buf, sizeof(buf), "tres_per_job: %s\n", job_desc->tres_per_job);
+    fwrite(buf, 1, strlen(buf), out);
+    snprintf(buf, sizeof(buf), "tres_per_node: %s\n", job_desc->tres_per_node);
+    fwrite(buf, 1, strlen(buf), out);
+    snprintf(buf, sizeof(buf), "tres_per_socket: %s\n", job_desc->tres_per_socket);
+    fwrite(buf, 1, strlen(buf), out);
+    snprintf(buf, sizeof(buf), "tres_per_task: %s\n", job_desc->tres_per_task);
+    fwrite(buf, 1, strlen(buf), out);
 #endif
 
     snprintf(buf, sizeof(buf), "partition: %s\n", job_desc->partition);
