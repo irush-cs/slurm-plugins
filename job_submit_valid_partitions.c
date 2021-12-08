@@ -86,7 +86,11 @@ extern int job_submit(struct job_descriptor *job_desc, uint32_t submit_uid,
 {
 	/* Locks: Read partition */
 	ListIterator part_iterator;
+#if SLURM_VERSION_NUMBER < SLURM_VERSION_NUM(20,2,0)
 	struct part_record *part_ptr;
+#else
+	part_record_t *part_ptr;
+#endif
 	const char* account = NULL;
 	slurmdb_user_rec_t user;
 	int i;
@@ -110,7 +114,11 @@ extern int job_submit(struct job_descriptor *job_desc, uint32_t submit_uid,
 	}
 
 	part_iterator = list_iterator_create(part_list);
+#if SLURM_VERSION_NUMBER < SLURM_VERSION_NUM(20,2,0)
 	while ((part_ptr = (struct part_record *) list_next(part_iterator))) {
+#else
+	while ((part_ptr = (part_record_t *) list_next(part_iterator))) {
+#endif
 		if (!(part_ptr->state_up & PARTITION_SUBMIT))
 			continue;	/* nobody can submit jobs here */
 
