@@ -128,8 +128,10 @@ extern int job_submit(struct job_descriptor *job_desc, uint32_t submit_uid,
 				if (xstrcmp(account, part_ptr->allow_account_array[i]) == 0)
 					break;
 			}
-			if (!part_ptr->allow_account_array[i])
+			if (!part_ptr->allow_account_array[i]) {
+				debug("job_submit/valid_partitions: job %u account %s not allowed in %s", job_desc->job_id, account, part_ptr->name);
 				continue;
+			}
 		}
 
 		/* Check if not in DenyAccounts */
@@ -138,14 +140,18 @@ extern int job_submit(struct job_descriptor *job_desc, uint32_t submit_uid,
 				if (xstrcmp(account, part_ptr->deny_account_array[i]) == 0)
 					break;
 			}
-			if (part_ptr->deny_account_array[i])
+			if (part_ptr->deny_account_array[i]) {
+				debug("job_submit/valid_partitions: job %u account %s denied in %s", job_desc->job_id, account, part_ptr->name);
 				continue;
+			}
 		}
 
 		/* Check time_limit doesn't exceeds MaxTime */
 		if (part_ptr->max_time != INFINITE && job_desc->time_limit != NO_VAL) {
-			if (job_desc->time_limit == INFINITE || job_desc->time_limit > part_ptr->max_time)
+			if (job_desc->time_limit == INFINITE || job_desc->time_limit > part_ptr->max_time) {
+				debug("job_submit/valid_partitions: job %u limit %u > partition %s limit %u", job_desc->job_id, job_desc->time_limit, part_ptr->name, part_ptr->max_time);
 				continue;
+			}
 		}
 
 		if (job_desc->partition)
@@ -153,7 +159,7 @@ extern int job_submit(struct job_descriptor *job_desc, uint32_t submit_uid,
 		xstrcat(job_desc->partition, part_ptr->name);
 	}
 	list_iterator_destroy(part_iterator);
-	//info("Set partition of submitted job to %s", job_desc->partition);
+        info("job_submit/valid_partitions: job %u partition set to: %s", job_desc->job_id, job_desc->partition);
 
     /*
      * If job_desc->partition is empty, than even the default partition is not
