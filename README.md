@@ -128,6 +128,15 @@ before adding all partitions. Checks AllowAccounts, DenyAccounts and
 MaxTime. This is to avoid unintended Reasons such as AccountNotAllowed or
 PartitionTimeLimit.
 
+By default, if a partition is already set for the job, the plugin does
+nothing. If a `valid_partitions.conf` file exists and contains:
+```
+Force=yes
+```
+then the plugin will also filter out unwanted partition from the ones the user
+specified. This is relevant when the `job_submit/limit_interactive` plugin
+specifies several partitions which are not accessible to all.
+
 # job\_submit\_meta\_partitions
 
 Create meta partitions which are replaced on submit. This is useful if there
