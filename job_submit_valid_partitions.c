@@ -44,6 +44,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <sys/stat.h>
 
 #include "slurm/slurm_errno.h"
 #include "src/common/slurm_xlator.h"
@@ -80,6 +81,47 @@ const char plugin_name[]       	= "Job submit valid_partitions plugin";
 const char plugin_type[]       	= "job_submit/valid_partitions";
 const uint32_t plugin_version   = SLURM_VERSION_NUMBER;
 
+
+static s_p_options_t valid_partitions_options[] = {
+	{"Force", S_P_BOOLEAN},
+	{NULL}
+};
+
+bool force_valid = false;
+
+extern int init (void) {
+
+	char *conf_file = NULL;
+	struct stat config_stat;
+	s_p_hashtbl_t *options = NULL;
+
+	// read conf file
+	conf_file = get_extra_conf_path("valid_partitions.conf");
+	if (stat(conf_file, &config_stat) < 0) {
+		info("job_submit/valid_partitions: no valid_partitions.conf");
+		return SLURM_SUCCESS;
+	}
+
+	options = s_p_hashtbl_create(valid_partitions_options);
+
+	if (s_p_parse_file(options, NULL, conf_file, false) == SLURM_ERROR)
+		fatal("Can't parse valid_partitions.conf %s: %m", conf_file);
+
+	s_p_get_boolean(&force_valid, "Force", options);
+
+	xfree(conf_file);
+
+	debug("job_submit/valid_partitions: force=%i", force_valid);
+
+	// FIXME, validate somehow?
+
+	s_p_hashtbl_destroy(options);
+	options = NULL;
+
+	return SLURM_SUCCESS;
+}
+
+
 /* Set a job's default partition to all partitions in the cluster */
 extern int job_submit(struct job_descriptor *job_desc, uint32_t submit_uid,
                       char **err_msg)
@@ -94,9 +136,42 @@ extern int job_submit(struct job_descriptor *job_desc, uint32_t submit_uid,
 	const char* account = NULL;
 	slurmdb_user_rec_t user;
 	int i;
+	char** reqpart = NULL;
+	int n_reqpart = 0;
 
-	if (job_desc->partition)	/* job already specified partition */
-		return SLURM_SUCCESS;
+	/* job already specified partition */
+	if (job_desc->partition) {
+		/* if force, save the requested partitions, and clear it */
+		if (force_valid) {
+			char* p;
+			char* saveptr;
+
+			/* count partitions */
+			n_reqpart = 1;
+			for (p = job_desc->partition; *p; ++p) {
+				if (*p == ',') {
+					++n_reqpart;
+				}
+			}
+
+			/* build reqpart array */
+			reqpart = xmalloc(sizeof(char*) * n_reqpart);
+			char* tmp_str = xstrdup(job_desc->partition);
+			char* part = strtok_r(tmp_str, ",", &saveptr);
+			i = 0;
+			while (part) {
+				reqpart[i++] = xstrdup(part);
+				part = strtok_r(NULL, ",", &saveptr);
+			}
+			debug("job_submit/valid_partitions: %i partitions requested", n_reqpart);
+
+			xfree(tmp_str);
+			xfree(job_desc->partition);
+			job_desc->partition = NULL;
+		} else {
+			return SLURM_SUCCESS;
+		}
+	}
 
 	/* Get account or default account */
 	if (job_desc->account) {
@@ -119,6 +194,20 @@ extern int job_submit(struct job_descriptor *job_desc, uint32_t submit_uid,
 #else
 	while ((part_ptr = (part_record_t *) list_next(part_iterator))) {
 #endif
+		if (force_valid && n_reqpart) {
+			bool found = false;
+			for (i = 0; i < n_reqpart; ++i) {
+				if (strcmp(reqpart[i], part_ptr->name) == 0) {
+					found = true;
+					break;
+				}
+			}
+			if (!found) {
+				debug("job_submit/valid_partitions: job didn't request partition %s", part_ptr->name);
+				continue;
+			}
+		}
+
 		if (!(part_ptr->state_up & PARTITION_SUBMIT))
 			continue;	/* nobody can submit jobs here */
 
@@ -129,7 +218,7 @@ extern int job_submit(struct job_descriptor *job_desc, uint32_t submit_uid,
 					break;
 			}
 			if (!part_ptr->allow_account_array[i]) {
-				debug("job_submit/valid_partitions: job %u account %s not allowed in %s", job_desc->job_id, account, part_ptr->name);
+				debug("job_submit/valid_partitions: job account %s not allowed in %s", account, part_ptr->name);
 				continue;
 			}
 		}
@@ -141,7 +230,7 @@ extern int job_submit(struct job_descriptor *job_desc, uint32_t submit_uid,
 					break;
 			}
 			if (part_ptr->deny_account_array[i]) {
-				debug("job_submit/valid_partitions: job %u account %s denied in %s", job_desc->job_id, account, part_ptr->name);
+				debug("job_submit/valid_partitions: job account %s denied in %s", account, part_ptr->name);
 				continue;
 			}
 		}
@@ -149,7 +238,7 @@ extern int job_submit(struct job_descriptor *job_desc, uint32_t submit_uid,
 		/* Check time_limit doesn't exceeds MaxTime */
 		if (part_ptr->max_time != INFINITE && job_desc->time_limit != NO_VAL) {
 			if (job_desc->time_limit == INFINITE || job_desc->time_limit > part_ptr->max_time) {
-				debug("job_submit/valid_partitions: job %u limit %u > partition %s limit %u", job_desc->job_id, job_desc->time_limit, part_ptr->name, part_ptr->max_time);
+				debug("job_submit/valid_partitions: job limit %u > partition %s limit %u", job_desc->time_limit, part_ptr->name, part_ptr->max_time);
 				continue;
 			}
 		}
@@ -159,12 +248,19 @@ extern int job_submit(struct job_descriptor *job_desc, uint32_t submit_uid,
 		xstrcat(job_desc->partition, part_ptr->name);
 	}
 	list_iterator_destroy(part_iterator);
-        info("job_submit/valid_partitions: job %u partition set to: %s", job_desc->job_id, job_desc->partition);
+        info("job_submit/valid_partitions: job partitions set to: %s", job_desc->partition);
 
-    /*
-     * If job_desc->partition is empty, than even the default partition is not
-     * good enough. As such better tell the user his job won't run
-     */
+	if (reqpart) {
+		for (i = 0; i < n_reqpart; i++)
+			xfree(reqpart[i]);
+		xfree(reqpart);
+		reqpart = NULL;
+	}
+
+	/*
+	 * If job_desc->partition is empty, than even the default partition is not
+	 * good enough. As such better tell the user his job won't run
+	 */
 	return job_desc->partition ? SLURM_SUCCESS : ESLURM_PARTITION_NOT_AVAIL;
 }
 
