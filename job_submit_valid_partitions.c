@@ -84,10 +84,13 @@ const uint32_t plugin_version   = SLURM_VERSION_NUMBER;
 
 static s_p_options_t valid_partitions_options[] = {
 	{"Force", S_P_BOOLEAN},
+	{"Exclude", S_P_STRING},
 	{NULL}
 };
 
 bool force_valid = false;
+char* exclude = NULL;
+char** excludes = NULL;
 
 extern int init (void) {
 
@@ -108,10 +111,40 @@ extern int init (void) {
 		fatal("Can't parse valid_partitions.conf %s: %m", conf_file);
 
 	s_p_get_boolean(&force_valid, "Force", options);
+	s_p_get_string(&exclude, "Exclude", options);
+
+	if (exclude) {
+		char* p;
+		char* saveptr;
+
+		/* count partitions */
+		int n_exclude = 1;
+		for (p = exclude; *p; ++p) {
+			if (*p == ',') {
+				++n_exclude;
+			}
+		}
+
+		/* build excludes array */
+		excludes = xmalloc(sizeof(char*) * (n_exclude + 1));
+		char* tmp_str = xstrdup(exclude);
+		char* part = strtok_r(tmp_str, ",", &saveptr);
+		int i = 0;
+		while (part) {
+			excludes[i++] = xstrdup(part);
+			part = strtok_r(NULL, ",", &saveptr);
+		}
+		excludes[i] = NULL;
+		debug("job_submit/valid_partitions: %i partitions excluded", n_exclude);
+
+		xfree(tmp_str);
+	}
+
 
 	xfree(conf_file);
 
 	debug("job_submit/valid_partitions: force=%i", force_valid);
+	debug("job_submit/valid_partitions: exclude=%s", exclude);
 
 	// FIXME, validate somehow?
 
@@ -121,6 +154,18 @@ extern int init (void) {
 	return SLURM_SUCCESS;
 }
 
+extern int fini (void) {
+    xfree(exclude);
+    exclude = NULL;
+    if (excludes) {
+	    for (int i = 0; excludes[i]; i++) {
+		    xfree(excludes[i]);
+		    excludes[i] = 0;
+	    }
+	    xfree(excludes);
+    }
+    return SLURM_SUCCESS;
+}
 
 /* Set a job's default partition to all partitions in the cluster */
 extern int job_submit(struct job_descriptor *job_desc, uint32_t submit_uid,
@@ -205,6 +250,21 @@ extern int job_submit(struct job_descriptor *job_desc, uint32_t submit_uid,
 			if (!found) {
 				debug("job_submit/valid_partitions: job didn't request partition %s", part_ptr->name);
 				continue;
+			}
+		} else {
+			/* exclude if not specifically reqeusted */
+			if (exclude) {
+				bool found = false;
+				for (i = 0; excludes[i]; ++i) {
+					if (strcmp(excludes[i], part_ptr->name) == 0) {
+						found = true;
+						break;
+					}
+				}
+				if (found) {
+					debug("job_submit/valid_partitions: partition %s is excluded", part_ptr->name);
+					continue;
+				}
 			}
 		}
 
