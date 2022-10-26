@@ -1,0 +1,10 @@
+
+# By default if the partition field is set (either by the user or earlier
+# plugin), this plugin will do nothing. By setting this to 'yes', the plugin
+# will filter bad partitions even if selected by the user.
+Force=no
+
+# Comma separated list of partitions to exclude even if valid. If Force=yes,
+# and the user (or earlier plugin) has specified partitions, they won't be
+# excluded even if on the list.
+Exclude=
