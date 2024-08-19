@@ -300,18 +300,34 @@ extern int job_submit(struct job_descriptor *job_desc, uint32_t submit_uid, char
         // then try primary group
         if (!found_account) {
             struct passwd pwd, *result = NULL;
-            char buffer[4096];
-            if (getpwuid_r(user.uid, &pwd, buffer, sizeof(buffer), &result) != 0 || result == NULL) {
-                error("job_submit/killable: can't get user %i pw", user.uid);
+            int rc;
+            size_t bsize = 4096;
+            char* buffer;
+            buffer = xmalloc(bsize);
+            if (getpwuid_r(user.uid, &pwd, buffer, bsize, &result) != 0 || result == NULL) {
+                error("job_submit/killable: can't get user %i pw (%i)", user.uid, errno);
+                xfree(buffer);
                 return SLURM_ERROR;
             }
             struct group gr, *gresult = NULL;
             gid_t gid = pwd.pw_gid;
-            if (getgrgid_r(gid, &gr, buffer, sizeof(buffer), &gresult) != 0 || gresult == NULL) {
-                error("job_submit/killable: can't get group %i gr", gid);
+            do {
+                errno = 0;
+                rc = getgrgid_r(gid, &gr, buffer, bsize, &gresult);
+                if (errno == ERANGE) {
+                    bsize *= 2;
+                    buffer = xrealloc(buffer, bsize);
+                    debug("job_submit/killable: gr buffer increased to %li", bsize);
+                }
+            } while (rc == ERANGE);
+            if (rc != 0 || gresult == NULL) {
+                error("job_submit/killable: can't get group %i gr (%i)", gid, errno);
+                xfree(buffer);
                 return SLURM_ERROR;
             }
-                
+            xfree(buffer);
+            buffer = NULL;
+
             for (int i = 0; i < pgroup_count; i++) {
                 if (strcmp(pgroup_keys[i], gr.gr_name) == 0) {
                     if (pgroup_values[i]) {
