@@ -16,6 +16,7 @@ School of Computer Science and Engineering.
 * [job_submit_killable](#job_submit_killable)
 * [spank_killable](#spank_killable)
 * [job_submit_cpuonly](#job_submit_cpuonly)
+* [job_submit_gres_groups](#job_submit_gres_groups)
 
 # Compilation
 
@@ -192,3 +193,23 @@ nodes without a `gpu` gres. The script `verify-cpuonly.sh` can be used to
 verify the nodes are indeed set up appropriately.
 
 Currently users who want to circumvent this could use `scontrol update job`
+
+# job\_submit\_gres\_groups
+
+This plugin is used to group together several gres types (same gres, different
+types) such that e.g. if user can use up to 5 gpus of type A or B, this can be
+controlled using slurm's GrpTRES accounting.
+
+The plugin will update the job gres fields such that for each type of gres in a
+group, an equivalent gres group will be added, and for each gres group (either
+added explicitly by the user or implicitly by the plugin) the proper un-typed
+gres will be added (so that gpu binding will occur).
+
+The groups are configured a `gres_groups.conf`, one line per gres that should
+be in a group. For example:
+```
+GRES=gpu:a10 Group=gg:g1
+GRES=gpu:a20 Group=gg:g1
+GRES=gpu:a30 Group=gg:g2
+GRES=gpu:a40 Group=gg:g4
+```
