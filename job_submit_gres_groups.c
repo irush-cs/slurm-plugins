@@ -402,6 +402,20 @@ extern int job_submit(struct job_descriptor *job_desc, uint32_t submit_uid, char
         int tres_count;
         _parse_tres(*tres_per, &tres, &tres_count);
 
+        // don't allow to repeat tres (slurm takes the last, unless it's 0), we
+        // just bail out
+        for (int t = 0; t < tres_count; t++) {
+            for (int t2 = t + 1; t2 < tres_count; t2++) {
+                if (strcmp(tres[t]->tres, tres[t2]->tres) == 0) {
+                    snprintf(buffer, sizeof(buffer) - 1, "GRES %s appears more than once", tres[t]->tres);
+                    info("job_submit/gres_groups: %s", buffer);
+                    *err_msg = xstrdup(buffer);
+                    _free_tres(&tres, tres_count);
+                    return ESLURM_DUPLICATE_GRES;
+                }
+            }
+        }
+
         // don't allow direct name if is grouped
         // e.g. gpu:2 -> fail
         for (int g = 0; g < gres_count; g++) {
