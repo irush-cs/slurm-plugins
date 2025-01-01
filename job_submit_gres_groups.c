@@ -247,11 +247,16 @@ inline static long _is_tres_token(char* token, char* name) {
     return 0;
 }
 
-static void _parse_tres(const char* tres, gg_tres_t*** out_result, int* out_count) {
-    char *tmp_str = xstrdup(tres);
-    size_t rsize = 5;
-    gg_tres_t** result = xmalloc(sizeof(gg_tres_t*) * rsize);
-    int count = 0;
+void destroy_gg_tres(gg_tres_t* tres) {
+    xfree(tres->tres);
+    tres->tres = NULL;
+    xfree(tres);
+    tres = NULL;
+}
+
+static List _parse_tres(const char* in_tres) {
+    char *tmp_str = xstrdup(in_tres);
+    List tres_list = list_create((ListDelF)destroy_gg_tres);
 
     char *last;
     char *token = strtok_r(tmp_str, ",", &last);
@@ -280,29 +285,13 @@ static void _parse_tres(const char* tres, gg_tres_t*** out_result, int* out_coun
             tres->count = 1;
         }
 
-        if (count == rsize) {
-            rsize *= 2;
-            result = xrealloc(result, sizeof(gg_tres_t*) * rsize);
-        }
-
-        result[count++] = tres;
+        list_append(tres_list, tres);
 
         token = strtok_r(NULL, ",", &last);
     }
 
     xfree(tmp_str);
-    *out_result = result;
-    *out_count = count;
-}
-
-static void _free_tres(gg_tres_t*** tres, int count) {
-    for (int t = 0; t < count; t++) {
-        xfree((*tres)[t]->tres);
-        xfree((*tres)[t]);
-        (*tres)[t] = NULL;
-    }
-    xfree(*tres);
-    *tres = NULL;
+    return tres_list;
 }
 
 /*
@@ -398,29 +387,40 @@ extern int job_submit(struct job_descriptor *job_desc, uint32_t submit_uid, char
         }
         debug("job_submit/gres_groups: %s: %s", tres_pers_names[i], *tres_per);
 
-        gg_tres_t** tres;
-        int tres_count;
-        _parse_tres(*tres_per, &tres, &tres_count);
+        List tres_list = _parse_tres(*tres_per);
 
         // don't allow to repeat tres (slurm takes the last, unless it's 0), we
         // just bail out
-        for (int t = 0; t < tres_count; t++) {
-            for (int t2 = t + 1; t2 < tres_count; t2++) {
-                if (strcmp(tres[t]->tres, tres[t2]->tres) == 0) {
-                    snprintf(buffer, sizeof(buffer) - 1, "GRES %s appears more than once", tres[t]->tres);
-                    info("job_submit/gres_groups: %s", buffer);
-                    *err_msg = xstrdup(buffer);
-                    _free_tres(&tres, tres_count);
-                    return ESLURM_DUPLICATE_GRES;
+        ListIterator it = list_iterator_create(tres_list);
+        gg_tres_t* tres1;
+        gg_tres_t* tres2;
+        while ((tres1 = list_next(it))) {
+            ListIterator it2 = list_iterator_create(tres_list);
+            int count = 0;
+            while ((tres2 = list_next(it2))) {
+                if (strcmp(tres1->tres, tres2->tres) == 0) {
+                    count++;
                 }
             }
+            list_iterator_destroy(it2);
+            if (count > 1) {
+                snprintf(buffer, sizeof(buffer) - 1, "GRES %s appears more than once", tres1->tres);
+                info("job_submit/gres_groups: %s", buffer);
+                *err_msg = xstrdup(buffer);
+                list_iterator_destroy(it);
+                list_destroy(tres_list);
+                return ESLURM_DUPLICATE_GRES;
+            }
         }
+
+
 
         // don't allow direct name if is grouped
         // e.g. gpu:2 -> fail
         for (int g = 0; g < gres_count; g++) {
-            for (int t = 0; t < tres_count; t++) {
-                if (strcmp(name_keys[gres_names[g]], tres[t]->tres) == 0) {
+            list_iterator_reset(it);
+            while ((tres1 = list_next(it))) {
+                if (strcmp(name_keys[gres_names[g]], tres1->tres) == 0) {
                     snprintf(buffer, sizeof(buffer) - 1, "Can't have un-typed %s (either specify type, e.g. %s, or group e.g. %s)",
                              name_keys[gres_names[g]],
                              gres_keys[g],
@@ -428,7 +428,8 @@ extern int job_submit(struct job_descriptor *job_desc, uint32_t submit_uid, char
                              );
                     info("job_submit/gres_groups: %s", buffer);
                     *err_msg = xstrdup(buffer);
-                    _free_tres(&tres, tres_count);
+                    list_iterator_destroy(it);
+                    list_destroy(tres_list);
                     return ESLURM_INVALID_GRES;
                 }
             }
@@ -439,11 +440,12 @@ extern int job_submit(struct job_descriptor *job_desc, uint32_t submit_uid, char
         for (int g = 0; g < gres_count; g++) {
             bool have_gres = false;
             bool have_group = false;
-            for (int t = 0; t < tres_count; t++) {
-                if (strcmp(tres[t]->tres, gres_keys[g]) == 0) {
+            list_iterator_reset(it);
+            while ((tres1 = list_next(it))) {
+                if (strcmp(tres1->tres, gres_keys[g]) == 0) {
                     have_gres = true;
                 }
-                if (strcmp(tres[t]->tres, group_keys[gres_groups[g]]) == 0) {
+                if (strcmp(tres1->tres, group_keys[gres_groups[g]]) == 0) {
                     have_group = true;
                 }
             }
@@ -451,7 +453,8 @@ extern int job_submit(struct job_descriptor *job_desc, uint32_t submit_uid, char
                 snprintf(buffer, sizeof(buffer) - 1, "Can't have both %s and %s", gres_keys[g], group_keys[gres_groups[g]]);
                 info("job_submit/gres_groups: %s", buffer);
                 *err_msg = xstrdup(buffer);
-                _free_tres(&tres, tres_count);
+                list_iterator_destroy(it);
+                list_destroy(tres_list);
                 return ESLURM_INVALID_GRES;
             }
         }
@@ -459,9 +462,10 @@ extern int job_submit(struct job_descriptor *job_desc, uint32_t submit_uid, char
         // count explicit groups
         long* groups = xcalloc(group_count, sizeof(long));
         for (int gr = 0; gr < group_count; gr++) {
-            for (int t = 0; t < tres_count; t++) {
-                if (strcmp(tres[t]->tres, group_keys[gr]) == 0) {
-                    groups[gr] = tres[t]->count;
+            list_iterator_reset(it);
+            while ((tres1 = list_next(it))) {
+                if (strcmp(tres1->tres, group_keys[gr]) == 0) {
+                    groups[gr] = tres1->count;
                 }
             }
             debug2("job_submit/gres_groups: %s: %s: %li", tres_pers_names[i], group_keys[gr], groups[gr]);
@@ -470,14 +474,15 @@ extern int job_submit(struct job_descriptor *job_desc, uint32_t submit_uid, char
         // add group counter for explicit name
         // e.g. gpu:a10:n -> gg:g3 += n
         for (int g = 0; g < gres_count; g++) {
-            for (int t = 0; t < tres_count; t++) {
-                if (strcmp(tres[t]->tres, gres_keys[g]) == 0) {
-                    groups[gres_groups[g]] += tres[t]->count;
+            list_iterator_reset(it);
+            while ((tres1 = list_next(it))) {
+                if (strcmp(tres1->tres, gres_keys[g]) == 0) {
+                    groups[gres_groups[g]] += tres1->count;
                     debug2("job_submit/gres_groups: %s: %s: %s: %li -> %li",
                            tres_pers_names[i],
                            gres_keys[g],
                            group_keys[gres_groups[g]],
-                           groups[gres_groups[g]] - tres[t]->count,
+                           groups[gres_groups[g]] - tres1->count,
                            groups[gres_groups[g]]);
                 }
             }
@@ -504,7 +509,8 @@ extern int job_submit(struct job_descriptor *job_desc, uint32_t submit_uid, char
             success = _set_tres(tres_per, name_count, name_keys, names);
         }
 
-        _free_tres(&tres, tres_count);
+        list_iterator_destroy(it);
+        list_destroy(tres_list);
         xfree(names);
         xfree(groups);
 
