@@ -298,51 +298,20 @@ static List _parse_tres(const char* in_tres) {
   update *tres to have the tres in *keys with counts in *count
   return true on success
 */
-inline static bool _set_tres(char** tres, int n_keys, char** keys, long* count) {
-    char *tmp_str = xstrdup(*tres);
-    char *last;
-    char *token = strtok_r(tmp_str, ",", &last);
+
+inline static bool _set_tres(char** tres, List tres_list) {
     char result[1024];
     char buffer[1024];
     result[0] = result[sizeof(result) - 1] = 0;
     buffer[0] = buffer[sizeof(buffer) - 1] = 0;
-    bool *done = xcalloc(n_keys, sizeof(bool));
 
-    // go over *tres, add token to result if token not in keys, add token from
-    // keys otherwise
-    while (token) {
-        // per tres, compare to keys
-        for (int k = 0; k < n_keys; k++) {
-            long current = 0;
-            if (count[k] && (current = _is_tres_token(token, keys[k]))) {
-                // try to avoid changing gres:type to gres:type:1
-                done[k] = true;
-                if (current != count[k]) {
-                    snprintf(buffer, sizeof(buffer) - 1, "%s:%li,", keys[k], count[k]);
-                    strncat(result, buffer, sizeof(result) - 1);
-                } else {
-                    strncat(result, token, sizeof(result) - 1);
-                    strncat(result, ",", sizeof(result) - 1);
-                }
-            } else {
-                strncat(result, token, sizeof(result) - 1);
-                strncat(result, ",", sizeof(result) - 1);
-            }
-        }
-
-        token = strtok_r(NULL, ",", &last);
+    ListIterator it = list_iterator_create(tres_list);
+    gg_tres_t* tres1;
+    while ((tres1 = list_next(it))) {
+        snprintf(buffer, sizeof(buffer) - 1, "%s:%li,", tres1->tres, tres1->count);
+        strncat(result, buffer, sizeof(result) - 1);
     }
-
-    // add all remaining keys
-    for (int k = 0; k < n_keys; k++) {
-        if (count[k] && !done[k]) {
-            snprintf(buffer, sizeof(buffer) - 1, "%s:%li,", keys[k], count[k]);
-            strncat(result, buffer, sizeof(result) - 1);
-        }
-    }
-
-    xfree(done);
-    xfree(tmp_str);
+    list_iterator_destroy(it);
 
     // too many treses
     if (strlen(result) >= sizeof(result) - 1) {
@@ -360,6 +329,12 @@ inline static bool _set_tres(char** tres, int n_keys, char** keys, long* count) 
     }
 
     return true;
+}
+
+static int gg_tres_cmp (void* object, void* key) {
+    gg_tres_t* tres = (gg_tres_t*)object;
+    char* name = (char*)key;
+    return strcmp(tres->tres, name) == 0;
 }
 
 extern int job_submit(struct job_descriptor *job_desc, uint32_t submit_uid, char **err_msg) {
@@ -459,63 +434,52 @@ extern int job_submit(struct job_descriptor *job_desc, uint32_t submit_uid, char
             }
         }
 
-        // count explicit groups
-        long* groups = xcalloc(group_count, sizeof(long));
+        bool updated = false;
+        // for each group, add proper name (can't have un/typed name with group)
+        // e.g. gg:g3:n -> gpu += n
         for (int gr = 0; gr < group_count; gr++) {
-            list_iterator_reset(it);
-            while ((tres1 = list_next(it))) {
-                if (strcmp(tres1->tres, group_keys[gr]) == 0) {
-                    groups[gr] = tres1->count;
+            gg_tres_t* gr_tres = list_find_first(tres_list, gg_tres_cmp, group_keys[gr]);
+            if (gr_tres) {
+                updated = true;
+                gg_tres_t* name_tres = list_find_first(tres_list, gg_tres_cmp, name_keys[group_names[gr]]);
+                if (name_tres == NULL) {
+                    name_tres = xmalloc(sizeof(gg_tres_t));
+                    name_tres->tres = xstrdup(name_keys[group_names[gr]]);
+                    name_tres->count = 0;
+                    list_append(tres_list, name_tres);
                 }
+                name_tres->count += gr_tres->count;
             }
-            debug2("job_submit/gres_groups: %s: %s: %li", tres_pers_names[i], group_keys[gr], groups[gr]);
         }
 
         // add group counter for explicit name
         // e.g. gpu:a10:n -> gg:g3 += n
         for (int g = 0; g < gres_count; g++) {
-            list_iterator_reset(it);
-            while ((tres1 = list_next(it))) {
-                if (strcmp(tres1->tres, gres_keys[g]) == 0) {
-                    groups[gres_groups[g]] += tres1->count;
-                    debug2("job_submit/gres_groups: %s: %s: %s: %li -> %li",
-                           tres_pers_names[i],
-                           gres_keys[g],
-                           group_keys[gres_groups[g]],
-                           groups[gres_groups[g]] - tres1->count,
-                           groups[gres_groups[g]]);
+            tres1 = list_find_first(tres_list, gg_tres_cmp, gres_keys[g]);
+            if (tres1) {
+                updated = true;
+                gg_tres_t* gr_tres = list_find_first(tres_list, gg_tres_cmp, group_keys[gres_groups[g]]);
+                if (gr_tres == NULL) {
+                    gr_tres = xmalloc(sizeof(gg_tres_t));
+                    gr_tres->tres = xstrdup(group_keys[gres_groups[g]]);
+                    gr_tres->count = 0;
+                    list_append(tres_list, gr_tres);
                 }
-            }
-        }
-
-        // add name so slurm will actually ask for the resources
-        // e.g. gg:g3:n -> gpu += n
-        long* names = xcalloc(name_count, sizeof(long));
-        for (int gr = 0; gr < group_count; gr++) {
-            if (groups[gr]) {
-                names[group_names[gr]] += groups[gr];
-                debug2("job_submit/gres_groups: %s: %s: %s: %li -> %li",
-                       tres_pers_names[i],
-                       group_keys[gr],
-                       name_keys[group_names[gr]],
-                       names[group_names[gr]] - groups[gr],
-                       names[group_names[gr]]);
+                gr_tres->count += tres1->count;
             }
         }
 
         // update tres
-        bool success = _set_tres(tres_per, group_count, group_keys, groups);
-        if (success) {
-            success = _set_tres(tres_per, name_count, name_keys, names);
+        bool success = true;
+        if (updated) {
+            success = _set_tres(tres_per, tres_list);
         }
 
         list_iterator_destroy(it);
         list_destroy(tres_list);
-        xfree(names);
-        xfree(groups);
 
         if (!success) {
-            *err_msg = xstrdup("Can't set gres properly");
+            *err_msg = xstrdup("Can't set updated gres properly");
             return ESLURM_UNSUPPORTED_GRES;
         }
     }
