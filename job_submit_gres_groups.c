@@ -52,6 +52,7 @@ static s_p_options_t gres_groups_options[] = {
 typedef struct gg_tres {
     long count;
     char* tres;
+    bool explicit;
 } gg_tres_t;
 
 // per gres line, gres is e.g. "gpu:a10"
@@ -272,6 +273,7 @@ static List _parse_tres(const char* in_tres) {
                 tres->count = strtol(rcolon + 1, NULL, 10);
                 tres->tres = xstrdup(token);
                 tres->tres[rcolon - token] = 0;
+                tres->explicit = true;
 
                 // last is not number
             } else {
@@ -308,7 +310,11 @@ inline static bool _set_tres(char** tres, List tres_list) {
     ListIterator it = list_iterator_create(tres_list);
     gg_tres_t* tres1;
     while ((tres1 = list_next(it))) {
-        snprintf(buffer, sizeof(buffer) - 1, "%s:%li,", tres1->tres, tres1->count);
+        if (tres1->count == 1 && !tres1->explicit) {
+            snprintf(buffer, sizeof(buffer) - 1, "%s,", tres1->tres);
+        } else {
+            snprintf(buffer, sizeof(buffer) - 1, "%s:%li,", tres1->tres, tres1->count);
+        }
         strncat(result, buffer, sizeof(result) - 1);
     }
     list_iterator_destroy(it);
@@ -449,6 +455,7 @@ extern int job_submit(struct job_descriptor *job_desc, uint32_t submit_uid, char
                     list_append(tres_list, name_tres);
                 }
                 name_tres->count += gr_tres->count;
+                name_tres->explicit = gr_tres->explicit;
             }
         }
 
@@ -466,6 +473,7 @@ extern int job_submit(struct job_descriptor *job_desc, uint32_t submit_uid, char
                     list_append(tres_list, gr_tres);
                 }
                 gr_tres->count += tres1->count;
+                gr_tres->explicit = tres1->explicit;
             }
         }
 
