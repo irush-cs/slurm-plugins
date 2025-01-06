@@ -496,6 +496,69 @@ extern int job_submit(struct job_descriptor *job_desc, uint32_t submit_uid, char
 }
 
 int job_modify(struct job_descriptor *job_desc, job_record_t *job_ptr, uint32_t modify_uid) {
-    // For now, disallow all
-    return SLURM_ERROR;
+    char** tres_pers[4];
+    char* tres_pers_names[4];
+    char buffer[1024];
+    buffer[0] = 0;
+    buffer[sizeof(buffer) - 1] = 0;
+    int result = SLURM_SUCCESS;
+
+    tres_pers[0] = &job_desc->tres_per_job;
+    tres_pers[1] = &job_desc->tres_per_node;
+    tres_pers[2] = &job_desc->tres_per_task;
+    tres_pers[3] = &job_desc->tres_per_socket;
+    tres_pers_names[0] = "tres_per_job";
+    tres_pers_names[1] = "tres_per_node";
+    tres_pers_names[2] = "tres_per_task";
+    tres_pers_names[3] = "tres_per_socket";
+
+    for (int i = 0; i < 4; i++) {
+        char** tres_per = tres_pers[i];
+
+        if (*tres_per == NULL) {
+            debug2("job_submit/gres_groups: modify: %s: %s", tres_pers_names[i], *tres_per ? *tres_per : "NULL");
+            continue;
+        }
+        debug("job_submit/gres_groups: modify: %s: %s", tres_pers_names[i], *tres_per);
+
+        List tres_list = _parse_tres(*tres_per);
+        ListIterator it = list_iterator_create(tres_list);
+
+        gg_tres_t* tres;
+        while ((tres = list_next(it))) {
+            for (int n = 0; n < gres_count; n++) {
+                if (strcmp(tres->tres, gres_keys[n]) == 0) {
+                    info("job_submit/gres_groups: modify: %s: update %s not allowed", tres_pers_names[i], tres->tres);
+                    result = ESLURM_ACCESS_DENIED;
+                    goto done;
+                }
+            }
+
+            for (int n = 0; n < group_count; n++) {
+                if (strcmp(tres->tres, group_keys[n]) == 0) {
+                    info("job_submit/gres_groups: modify: %s: update %s not allowed", tres_pers_names[i], tres->tres);
+                    result = ESLURM_ACCESS_DENIED;
+                    goto done;
+                }
+            }
+
+            for (int n = 0; n < name_count; n++) {
+                if (strcmp(tres->tres, name_keys[n]) == 0) {
+                    info("job_submit/gres_groups: modify: %s: update %s not allowed", tres_pers_names[i], tres->tres);
+                    result = ESLURM_ACCESS_DENIED;
+                    goto done;
+                }
+            }
+
+        }
+
+    done:
+        list_iterator_destroy(it);
+        list_destroy(tres_list);
+
+        if (result != SLURM_SUCCESS)
+            break;
+    }
+
+    return result;
 }
