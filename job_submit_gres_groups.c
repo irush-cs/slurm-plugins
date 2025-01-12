@@ -464,6 +464,19 @@ extern int job_submit(struct job_descriptor *job_desc, uint32_t submit_uid, char
             }
         }
 
+        // don't allow untyped group (for now)
+        // e.g. gg -> fail
+        for (int gn = 0; gn < group_name_count; gn++) {
+            if (list_find_first(tres_list, gg_tres_cmp, group_name_keys[gn])) {
+                snprintf(buffer, sizeof(buffer) - 1, "Can't have un-typed gres group %s", group_name_keys[gn]);
+                info("job_submit/gres_groups: %s", buffer);
+                *err_msg = xstrdup(buffer);
+                list_iterator_destroy(it);
+                list_destroy(tres_list);
+                return ESLURM_INVALID_GRES;
+            }
+        }
+
         // can't have both name and its group specified
         // e.g. can't have both gpu:a10 and gg:g3
         for (int g = 0; g < gres_count; g++) {
