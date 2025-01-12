@@ -2,8 +2,8 @@
  *
  *   job_submit_gres_groups.c
  *
- *   Copyright (C) 2024 Hebrew University of Jerusalem Israel, see LICENSE
- *   file.
+ *   Copyright (C) 2024 - 2025 Hebrew University of Jerusalem Israel, see
+ *   LICENSE file.
  *
  *   Author: Yair Yarom <irush@cs.huji.ac.il>
  *
@@ -65,10 +65,16 @@ int* gres_names = NULL;
 int group_count = 0;
 char** group_keys = NULL;
 int* group_names = NULL;
+int* group_group_names = NULL;
 
 // name of the gres without type, e.g. "gpu"
 int name_count = 0;
 char** name_keys = NULL;
+
+// name of the group without type, e.g. "gg"
+int group_name_count = 0;
+char** group_name_keys = NULL;
+int* group_name_names = NULL;
 
 extern int init (void) {
 
@@ -98,9 +104,15 @@ extern int init (void) {
     group_keys = xmalloc(gres_count * sizeof(char*));
     group_names = xmalloc(gres_count * sizeof(int));
 
+    group_name_keys = xmalloc(gres_count * sizeof(char*));
+    group_group_names = xmalloc(gres_count * sizeof(int));
+    group_name_names = xmalloc(gres_count * sizeof(int));
+
     // set to -1, as 0 is a valid value
     for (int g = 0; g < gres_count; g++) {
         group_names[g] = -1;
+        group_group_names[g] = -1;
+        group_name_names[g] = -1;
     }
 
     name_keys = xmalloc(gres_count * sizeof(char*));
@@ -147,6 +159,25 @@ extern int init (void) {
                 }
                 gres_names[i] = found;
 
+                // find group name or "create" it
+                found = -1;
+                char* group_name = xstrdup(group_keys[gres_groups[i]]);
+                *strchrnul(group_name, ':') = 0;
+                for (int n = 0; n < group_name_count; n++) {
+                    if (strcmp(group_name, group_name_keys[n]) == 0) {
+                        found = n;
+                        break;
+                    }
+                }
+                if (found == -1) {
+                    group_name_keys[group_name_count] = group_name;
+                    found = group_name_count++;
+                } else {
+                    xfree(group_name);
+                }
+                group_group_names[i] = found;
+                group_name_names[found] = gres_names[i];
+
                 // verify only one name per group
                 if (group_names[gres_groups[i]] == -1) {
                     group_names[gres_groups[i]] = gres_names[i];
@@ -164,10 +195,15 @@ extern int init (void) {
         }
     }
 
-    info("job_submit/gres_groups: found %i GRES in %i groups", gres_count, group_count);
+    info("job_submit/gres_groups: found %i GRES in %i groups (%i group types)", gres_count, group_name_count, group_count);
     if (get_log_level() >= LOG_LEVEL_DEBUG) {
         for (int i = 0; i < gres_count; i++) {
-            debug("job_submit/gres_groups: gres: %s, name: %s, group: %s", gres_keys[i], name_keys[gres_names[i]], group_keys[gres_groups[i]]);
+            debug("job_submit/gres_groups: gres: %s, name: %s, group: %s, group_name: %s",
+                  gres_keys[i],
+                  name_keys[gres_names[i]],
+                  group_keys[gres_groups[i]],
+                  group_name_keys[group_group_names[gres_groups[i]]]
+                  );
         }
     }
 
@@ -200,6 +236,18 @@ extern int fini (void) {
     group_count = 0;
     xfree(group_names);
     group_names = 0;
+
+    for (int i = 0; i < group_name_count; i++) {
+        xfree(group_name_keys[i]);
+        group_name_keys[i] = NULL;
+    }
+    xfree(group_name_keys);
+    group_name_keys = NULL;
+    group_name_count = 0;
+    xfree(group_group_names);
+    group_group_names = 0;
+    xfree(group_name_names);
+    group_name_names = 0;
 
     for (int i = 0; i < name_count; i++) {
         xfree(name_keys[i]);
@@ -421,6 +469,7 @@ extern int job_submit(struct job_descriptor *job_desc, uint32_t submit_uid, char
         for (int g = 0; g < gres_count; g++) {
             bool have_gres = false;
             bool have_group = false;
+            bool have_group_name = false;
             list_iterator_reset(it);
             while ((tres1 = list_next(it))) {
                 if (strcmp(tres1->tres, gres_keys[g]) == 0) {
@@ -429,9 +478,14 @@ extern int job_submit(struct job_descriptor *job_desc, uint32_t submit_uid, char
                 if (strcmp(tres1->tres, group_keys[gres_groups[g]]) == 0) {
                     have_group = true;
                 }
+                if (strcmp(tres1->tres, group_name_keys[group_group_names[gres_groups[g]]]) == 0) {
+                    have_group_name = true;
+                }
             }
-            if (have_gres && have_group) {
-                snprintf(buffer, sizeof(buffer) - 1, "Can't have both %s and %s", gres_keys[g], group_keys[gres_groups[g]]);
+            if (have_gres && (have_group || have_group_name)) {
+                snprintf(buffer, sizeof(buffer) - 1, "Can't have both %s and %s", gres_keys[g],
+                         have_group ? group_keys[gres_groups[g]] : group_name_keys[group_group_names[gres_groups[g]]]
+                         );
                 info("job_submit/gres_groups: %s", buffer);
                 *err_msg = xstrdup(buffer);
                 list_iterator_destroy(it);
@@ -451,6 +505,23 @@ extern int job_submit(struct job_descriptor *job_desc, uint32_t submit_uid, char
                 if (name_tres == NULL) {
                     name_tres = xmalloc(sizeof(gg_tres_t));
                     name_tres->tres = xstrdup(name_keys[group_names[gr]]);
+                    name_tres->count = 0;
+                    list_append(tres_list, name_tres);
+                }
+                name_tres->count += gr_tres->count;
+                name_tres->explicit = gr_tres->explicit;
+            }
+        }
+        // also add for untyped groups
+        // e.g. gg:n -> gpu += n
+        for (int gn = 0; gn < group_name_count; gn++) {
+            gg_tres_t* gr_tres = list_find_first(tres_list, gg_tres_cmp, group_name_keys[gn]);
+            if (gr_tres) {
+                updated = true;
+                gg_tres_t* name_tres = list_find_first(tres_list, gg_tres_cmp, name_keys[group_name_names[gn]]);
+                if (name_tres == NULL) {
+                    name_tres = xmalloc(sizeof(gg_tres_t));
+                    name_tres->tres = xstrdup(name_keys[group_name_names[gn]]);
                     name_tres->count = 0;
                     list_append(tres_list, name_tres);
                 }
