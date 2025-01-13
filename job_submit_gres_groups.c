@@ -634,6 +634,13 @@ int job_modify(struct job_descriptor *job_desc, job_record_t *job_ptr, uint32_t 
                 }
             }
 
+            for (int gn = 0; gn < group_name_count; gn++) {
+                if (strcmp(tres->tres, group_name_keys[gn]) == 0) {
+                    info("job_submit/gres_groups: modify: %s: update %s not allowed", tres_pers_names[i], tres->tres);
+                    result = ESLURM_ACCESS_DENIED;
+                    goto done;
+                }
+            }
         }
 
     done:
